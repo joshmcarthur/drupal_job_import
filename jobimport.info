@@ -1,0 +1,5 @@
+; $Id$
+name = Job Import
+description = Designed for Cron, updates job postings module tables from data contained in a file.
+core = 6.x
+dependencies[] = job_posting

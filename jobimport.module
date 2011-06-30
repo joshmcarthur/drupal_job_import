@@ -1,0 +1,194 @@
+<?php
+
+	// $Id$
+	include("job_constants.inc");
+	include("job_class.inc");
+
+		
+	function jobimport_cron()
+	{
+		try
+		{			
+		    //Open the jobs file, throwing an exception if it cannot be found, read, etc.		
+			$jobs_file = fopen(JOB_FILE, 'r');
+			if($jobs_file == false || $jobs_file == null)
+            {
+                throw new Exception("Could not open the uploaded jobs file for loading.");
+            }
+            
+            //The current nodes that we won't want after the import
+            $nids_keep = array();
+            
+            //Iterate through file lines and import the job.
+            while(($job_data = fgetcsv($jobs_file, 0, JOBS_FILE_DELIMETER)) != false)
+            {
+                jobimport_importjob(InstantiateJobClass($job_data), $nids_keep);
+            }
+            
+            
+            //Now clear out jobs that weren't in the file
+            $delete_match_nodes_result = db_query("SELECT nid FROM {node} ".
+                                                  "WHERE type='job_posting' AND ".
+                                                  "nid NOT IN (%s);", implode(",", $nids_keep));
+            
+            while($match_node = db_fetch_object($delete_match_nodes_result))
+            {
+                db_query("DELETE FROM {job_posting} WHERE nid = %d", $match_node->nid);
+                db_query("DELETE FROM {node_revisions} WHERE nid = %d", $match_node->nid);
+                db_query("DELETE FROM {node} WHERE nid = %d", $match_node->nid);    
+            }
+		}
+		catch(Exception $e)
+		{
+			HandleError($e->getMessage());
+		}
+	}
+	
+	
+		
+	/* @function HandleError
+		Send an email to developer with details of errors encountered and exit script
+	*/
+	function HandleError($message)
+	{
+		$body = "An error occurred running one or more cron tasks. The reported error was: ". $message;
+		mail(MAIL_ADDR, "Error Report", $body);
+		exit("Error encountered: " . $message);
+	}
+	
+	
+	function InstantiateJobClass($job_data)
+	{
+	
+        $job_id = $job_data[1];
+		$job_location = $job_data[5];
+		$job_region = $job_data[0];
+		$job_title = $job_data[2];
+		$job_description = $job_data[3];
+		$job_type = $job_data[4];
+		$job_salary_from = $job_data[6];
+		$job_salary_to = $job_data[7];
+		$job_category = $job_data[8];
+		
+		$new_job = new Job($job_title, $job_id, $job_location, $job_region, $job_description, $job_type, $job_salary_from, $job_salary_to, $job_category);
+		
+		return $new_job;
+	}
+	
+	function jobimport_importjob($job_class, &$nids_keep)
+	{
+	    //We want to use the timestamp a few times, so let's assign it now
+	    $timestamp = time();
+	    
+	    //Try and find the node in the database
+	    $existing_job = db_fetch_object(db_query("SELECT * ".
+	                             "FROM {job_posting}  ".
+	                             "WHERE vac_id = %d LIMIT 1;", $job_class->job_id));
+	    if($existing_job)
+	    {
+	        //The node exists, just update the database
+	        $existing_job_node = db_fetch_object(db_query("SELECT * FROM {node} WHERE nid =  %d LIMIT 1;", $existing_job->nid));
+	        $existing_job_node_revision = db_fetch_object(db_query("SELECT * FROM {node_revisions} WHERE vid = %d LIMIT 1;", $existing_job->vid));
+	        
+	        //Need to update title and timestamp of node
+	        $existing_job_node->title = $job_class->job_title;
+	        $existing_job_node->changed = $timestamp;
+	        
+	        //Need to update title, body, teaser and timestamp of node revision
+	        $existing_job_node_revision->title = $job_class->job_title;
+	        $existing_job_node_revision->body = $job_class->job_description;
+	        $existing_job_node_revision->teaser = $job_class->job_description;
+	        $existing_job_node_revision->timestamp = $timestamp;
+	        
+	        //Need to update city, state, job type, salary from, salary to
+	        $existing_job->city = $job_class->job_location;
+	        $existing_job->state = $job_class->job_region;
+	        $existing_job->job_type = $job_class->job_type;
+	        $existing_job->salary_from = $job_class->job_salary_from;
+	        $existing_job->salary_to = $job_class->job_salary_to;
+	        
+	        drupal_write_record('node', $existing_job_node, array('nid', 'vid'));
+	        drupal_write_record('node_revisions', $existing_job_node_revision, 'vid');
+	        drupal_write_record('job_posting', $existing_job, array('nid', 'vid'));
+	        
+	        //Add job node id onto the list of job nodes not to delete
+	        $nids_keep[] = $existing_job_node->nid;
+       }
+       else
+       {
+            //The node does not exist - insert into the database   
+            $timestamp = time();
+            
+            $new_node = new stdClass();
+            $new_node->nid = 0;
+            $new_node->vid = 0;
+            $new_node->type = "job_posting";
+            $new_node->language = "en";
+            $new_node->title = $job_class->job_title;
+            $new_node->uid=1;
+            $new_node->status = 1;
+            $new_node->created = $timestamp;
+            $new_node->changed = $timestamp;
+            $new_node->comment = 0;
+            $new_node->promote = 0;
+            $new_node->moderate = 0;
+            $new_node->sticky = 0;
+            $new_node->tnid = 0;
+            $new_node->translate = 0;
+            
+            if(drupal_write_record('node', $new_node) == false)
+            {
+              throw new Exception(mysql_last_error());
+            }
+        
+            $new_revision = new stdClass();
+            $new_revision->vid = 0;
+            $new_revision->nid = $new_node->nid;
+            $new_revision->uid = 1;
+            $new_revision->title = $new_node->title;
+            $new_revision->body = $job_class->job_description;
+            $new_revision->teaser = $job_class->job_description;
+            $new_revision->timestamp = $timestamp;
+            $new_revision->format = 2;
+            
+            if(drupal_write_record('node_revisions', $new_revision) == false)
+            {
+              throw new Exception(mysql_last_error());
+            }
+            
+            $new_node->vid = $new_revision->vid;
+            
+            if(drupal_write_record('node', $new_node, 'nid') == false)
+            {
+              throw new Exception(mysql_last_error());
+            }
+           
+            $new_job = new stdClass();
+            $new_job->nid = $new_revision->nid;
+            $new_job->vid = $new_revision->vid;
+            $new_job->vac_id = $job_class->job_id;
+            $new_job->city = $job_class->job_location;
+            $new_job->state = $job_class->job_region;
+            $new_job->cid = 0;
+            $new_job->employer = "Neal Andrews + Associates";
+            $new_job->website = "www.recruit.co.nz";
+            $new_job->email = "wellington@recruit.co.nz";
+            $new_job->contact = "Recruiter";
+            $new_job->deadline = 0;
+            $new_job->expires = 0;
+            $new_job->applink = 1;
+            $new_job->job_type = $job_class->job_type;
+            $new_job->salary_from = $job_class->job_salary_from;
+            $new_job->salary_to = $job_class->job_salary_to;
+            
+            if(drupal_write_record('job_posting', $new_job) == false)
+            {
+              throw new Exception(mysql_last_error());
+            }
+        
+            //Add nid to the nids_keep array
+            $nids_keep[] = $new_node->nid;
+      }     
+	}
+	
+	
