@@ -14,7 +14,7 @@ Features
 Disclaimer
 ----------
 
-This is one part of the very little useful PHP I have written - I normally develop in [Ruby](http://ruby-lang.org). Because of this, I wouldn't be at all surprised if there are parts of this code that are abolutely horrible/downright wrong. If you are a more experienced developer than me, and these parts disgust you, please either fork and pull request back to me, or [lodge an issue](https://github.com/joshmcarthur/drupal_job_import/issues).
+This is one part of the very little useful PHP I have written - I normally develop in [Ruby](http://ruby-lang.org). Because of this, I wouldn't be at all surprised if there are parts of this code that are abolutely horrible/downright wrong. If you are a more experienced developer than me, and these parts disgust you, please either fork and pull request back to me, or [lodge an issue](https://github.com/joshmcarthur/drupal_import_jobs/issues).
 
 Installation
 ------------
