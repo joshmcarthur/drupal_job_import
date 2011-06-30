@@ -14,12 +14,12 @@ Features
 Disclaimer
 ----------
 
-This is one part of the very little useful PHP I have written - I normally develop in [Ruby](http://ruby-lang.org). Because of this, I wouldn't be at all surprised if there are parts of this code that are abolutely horrible/downright wrong. If you are a more experienced developer than me, and these parts disgust you, please either fork and pull request back to me, or [lodge an issue](https://github.com/joshmcarthur/drupal_import_jobs/issues).
+This is one part of the very little useful PHP I have written - I normally develop in [Ruby](http://ruby-lang.org). Because of this, I wouldn't be at all surprised if there are parts of this code that are abolutely horrible/downright wrong. If you are a more experienced developer than me, and these parts disgust you, please either fork and pull request back to me, or [lodge an issue](https://github.com/joshmcarthur/drupal_job_import/issues).
 
 Installation
 ------------
 
-1. Easy way for people who just want to use it: [Download the tarball](https://github.com/joshmcarthur/drupal_job_import), extract and rename folder to job_import (it goes in your site's `modules` folder).
+1. Easy way for people who just want to use it: [Download the tarball](https://github.com/joshmcarthur/drupal_job_import/tarball/master), extract and rename folder to job_import (it goes in your site's `modules` folder).
 2. Harder way for people who want to contribute: Fork and/or Clone the repository: `git clone https://github.com/joshmcarthur/drupal_job_import.git job_import`
 
 Usage
